@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Group Randomiser</title>
+  <style>
+    body {
+      font-family: Roboto, sans-serif;
+      padding: 30px;
+      background-color: #f0f0f0;
+      color: #000000;
+    }
+    h1 {
+      text-align: center;
+      color: #000000;
+      font-size: 2.2rem;
+      margin-bottom: 20px;
+    }
+    label {
+      font-weight: bold;
+    }
+    textarea, select, input[type=number] {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 2px solid #ffdc00;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .inline-controls {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .inline-controls > div {
+      flex: 1;
+    }
+    button {
+      background-color: #ffdc00;
+      border: none;
+      color: #000000;
+      padding: 10px 20px;
+      margin: 5px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    .group-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 30px;
+    }
+    .group-card {
+      background: #ffffff;
+      border: 2px solid #ffdc00;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      padding: 15px 20px;
+      margin: 15px;
+      min-width: 220px;
+    }
+    .group-card h3 {
+      margin-top: 0;
+      color: #000000;
+    }
+    ul {
+      padding-left: 20px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+  <h1>Group Randomiser</h1>
+
+  <label for="studentList">Paste student names (one per line):</label>
+  <textarea id="studentList" rows="10" placeholder="e.g., Alice\nBob\nCharlie"></textarea>
+
+  <div class="inline-controls">
+    <div>
+      <label for="groupMode">Choose grouping method:</label>
+      <select id="groupMode">
+        <option value="groups">Number of Groups</option>
+        <option value="perGroup">Number of Students per Group</option>
+      </select>
+    </div>
+    <div>
+      <label for="groupSize">Enter number:</label>
+      <input type="number" id="groupSize" min="1" />
+    </div>
+  </div>
+
+  <button onclick="generateGroups()">🎲 Randomise Groups</button>
+  <button onclick="reshuffleGroups()">🔄 Re-shuffle</button>
+  <button onclick="downloadGroups('txt')">Download .txt</button>
+  <button onclick="downloadGroups('csv')">Download .csv</button>
+
+  <div class="group-container" id="output"></div>
+
+  <script>
+    let latestGroups = [];
+    const emojis = ["🎉", "🌈", "🚀", "💫", "✨"];
+    const thinkLabNames = ["Investigators", "Innovators", "Designers", "Strategists", "Builders", "Analysts", "Creators", "Collaborators"];
+
+    function generateGroups() {
+      const names = document.getElementById("studentList").value.trim().split("\n").filter(n => n.trim());
+      const mode = document.getElementById("groupMode").value;
+      const num = parseInt(document.getElementById("groupSize").value);
+
+      if (!names.length || !num || num < 1) return alert("Please enter valid student names and group number.");
+
+      shuffleArray(names);
+
+      let groupCount = mode === 'groups' ? num : Math.ceil(names.length / num);
+      latestGroups = Array.from({ length: groupCount }, () => []);
+
+      names.forEach((name, i) => {
+        latestGroups[i % groupCount].push(name);
+      });
+
+      renderGroups();
+    }
+
+    function reshuffleGroups() {
+      if (!latestGroups.length) return;
+      const allStudents = latestGroups.flat();
+      shuffleArray(allStudents);
+
+      const groupCount = latestGroups.length;
+      latestGroups = Array.from({ length: groupCount }, () => []);
+      allStudents.forEach((name, i) => {
+        latestGroups[i % groupCount].push(name);
+      });
+
+      renderGroups();
+    }
+
+    function renderGroups() {
+      const output = document.getElementById("output");
+      output.innerHTML = "";
+      latestGroups.forEach((group, i) => {
+        const div = document.createElement("div");
+        div.className = "group-card";
+        const groupName = thinkLabNames[i % thinkLabNames.length] || `Team ${String.fromCharCode(65 + i)}`;
+        div.innerHTML = `<h3>${groupName} ${emojis[i % emojis.length]}</h3><ul>${group.map(n => `<li>${n}</li>`).join("")}</ul>`;
+        output.appendChild(div);
+      });
+      triggerConfetti();
+    }
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function downloadGroups(format) {
+      if (!latestGroups.length) return;
+
+      let content = "";
+      if (format === "txt") {
+        content = latestGroups.map((g, i) =>
+          `${thinkLabNames[i % thinkLabNames.length] || `Team ${String.fromCharCode(65 + i)}`}:\n` +
+          g.join("\n")
+        ).join("\n\n");
+      } else {
+        content = latestGroups.map((g, i) =>
+          `"${thinkLabNames[i % thinkLabNames.length] || `Team ${String.fromCharCode(65 + i)}`}","${g.join(", ")}"`
+        ).join("\n");
+      }
+
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `thinklab-groups.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function triggerConfetti() {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    }
+  </script>
+</body>
+</html>
